@@ -142,7 +142,7 @@ paths:
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer, description: RELAY_ADMIN_TOKEN }
-    basic: { type: http, scheme: basic, description: Any username, RELAY_ADMIN_TOKEN as password (for browsers) }
+    basic: { type: http, scheme: basic, description: "Any username, RELAY_ADMIN_TOKEN as password (for browsers)" }
   schemas:
     Error:
       type: object
