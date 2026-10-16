@@ -1,0 +1,36 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.}} · Webhook Relay</title>
+<style>
+  :root { --bg:#0e0d0b; --panel:#16150f; --rule:#2a2820; --ink:#f3f0e6; --muted:#a09a89; --faint:#6d6858;
+          --ok:#3fb27f; --warn:#d9a441; --bad:#e0614c; --info:#7aa2f7; }
+  * { box-sizing:border-box; margin:0 }
+  body { background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; padding:24px 16px }
+  .wrap { max-width:1100px; margin:0 auto }
+  a { color:inherit } .mono { font-family:ui-monospace,Consolas,monospace; font-size:13px }
+  header { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:20px }
+  h1 { font-size:22px } h2 { font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:28px 0 10px }
+  .muted { color:var(--muted) } .faint { color:var(--faint) }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:18px }
+  .card { background:var(--panel); border:1px solid var(--rule); border-radius:3px; padding:14px; text-decoration:none }
+  .card b { display:block; font-size:26px } .card span { color:var(--muted); font-size:13px }
+  .filters { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px }
+  .chip { border:1px solid var(--rule); border-radius:3px; padding:3px 9px; font-size:13px; text-decoration:none; color:var(--muted) }
+  .chip.on { color:var(--ink); border-color:var(--muted) }
+  table { width:100%; border-collapse:collapse } th,td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--rule); vertical-align:top }
+  th { font-size:12px; color:var(--faint); font-weight:500; text-transform:uppercase; letter-spacing:.08em }
+  .pill { display:inline-block; padding:1px 8px; border-radius:3px; font:12px ui-monospace,Consolas,monospace; border:1px solid currentColor }
+  .delivered { color:var(--ok) } .retrying { color:var(--warn) } .dead { color:var(--bad) } .pending, .delivering { color:var(--info) }
+  .err { color:var(--bad); font-size:13px; max-width:420px; overflow-wrap:anywhere }
+  pre { background:var(--panel); border:1px solid var(--rule); border-radius:3px; padding:14px; overflow:auto; font:13px/1.5 ui-monospace,Consolas,monospace }
+  button { background:var(--ink); color:var(--bg); border:0; border-radius:3px; padding:8px 14px; font:inherit; cursor:pointer }
+  dl { display:grid; grid-template-columns:max-content 1fr; gap:6px 16px } dt { color:var(--muted) }
+  @media (max-width:700px) { .hide-sm { display:none } }
+</style>
+</head>
+<body><div class="wrap">{{end}}
+
+{{define "foot"}}<p class="faint mono" style="margin-top:32px">webhook-relay · github.com/Jacksonoseikojo1122/webhook-relay</p></div></body></html>{{end}}

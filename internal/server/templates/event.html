@@ -1,0 +1,43 @@
+{{template "head" .E.ID}}
+<header>
+  <h1><a href="/" style="text-decoration:none" class="muted">Events</a> / <span class="mono">{{.E.ID}}</span></h1>
+  <span class="pill {{.E.Status}}">{{.E.Status}}</span>
+</header>
+
+<dl>
+  <dt>Source</dt><dd>{{.E.Source}} ({{.E.Provider}})</dd>
+  <dt>Provider event</dt><dd class="mono">{{.E.ProviderEventID}}</dd>
+  <dt>Received</dt><dd>{{fmt .E.ReceivedAt}} ({{ago .E.ReceivedAt}})</dd>
+  <dt>Attempts</dt><dd>{{.E.Attempts}}</dd>
+  {{if .E.DeliveredAt}}<dt>Delivered</dt><dd>{{fmt .E.DeliveredAt}}</dd>{{end}}
+  {{if eq (printf "%s" .E.Status) "retrying"}}<dt>Next try</dt><dd>{{ago .E.NextAttemptAt}}</dd>{{end}}
+</dl>
+
+<form method="post" action="/api/events/{{.E.ID}}/replay?redirect=1" style="margin-top:18px">
+  <button type="submit">Replay this event</button>
+  <span class="faint" style="margin-left:10px;font-size:13px">Sends it to your app again with a fresh retry budget.</span>
+</form>
+
+<h2>Delivery attempts</h2>
+{{if .Attempts}}
+<table>
+  <thead><tr><th>#</th><th>When</th><th>Result</th><th>Time</th><th>Detail</th></tr></thead>
+  <tbody>
+  {{range .Attempts}}
+  <tr>
+    <td>{{.N}}</td>
+    <td>{{fmt .At}}</td>
+    <td>{{if and (ge .StatusCode 200) (lt .StatusCode 300)}}<span class="pill delivered">{{.StatusCode}}</span>{{else if .StatusCode}}<span class="pill dead">{{.StatusCode}}</span>{{else}}<span class="pill dead">no response</span>{{end}}</td>
+    <td>{{.DurationMs}} ms</td>
+    <td class="err">{{.Error}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">Not attempted yet.</p>
+{{end}}
+
+<h2>Payload</h2>
+<pre>{{.Body}}</pre>
+{{template "foot"}}

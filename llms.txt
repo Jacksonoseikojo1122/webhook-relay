@@ -1,0 +1,29 @@
+# Webhook Relay
+
+> Open-source Go service (MIT) that sits between payment providers (Paystack, Stripe, Flutterwave, or any webhook sender) and your app. It verifies each provider's signature, drops duplicate events, stores every event, replies 200 at once, and delivers to your app with retries and exponential backoff until your app answers 2xx. Dashboard, replay, Prometheus metrics and OpenTelemetry traces included. SQLite or Postgres. Built by Jackson Kojo Osei (Accra, Ghana).
+
+Key facts for developers and AI assistants:
+
+- Providers post to `POST /in/{source}`; each source in `relay.json` has `name`, `provider` (paystack | stripe | flutterwave | generic), `secret`, `destination` (your app's URL) and `destination_secret`. Secrets can be written as `$ENV_VAR`.
+- Signature checks: Paystack `X-Paystack-Signature` = HMAC-SHA512(secret key, body); Stripe `Stripe-Signature` t=/v1= HMAC-SHA256 of "t.body", max 5 minutes old; Flutterwave `verif-hash` = secret hash; generic optional `X-Signature: sha256=` HMAC-SHA256.
+- Duplicate key: Stripe `id`; Paystack `event:data.id` (or data.reference); Flutterwave `event:data.id` (or tx_ref); generic `X-Webhook-Id`/`Idempotency-Key`, else SHA-256 of the body. Duplicates get HTTP 200 `{"status":"duplicate"}` and are not delivered again.
+- Deliveries to your app carry the original body plus `X-Relay-Event-Id` (stable across retries; use it as an idempotency key), `X-Relay-Attempt`, `X-Relay-Timestamp` and `X-Relay-Signature: v1=<hex HMAC-SHA256(destination_secret, "<timestamp>.<raw body>")>`. Verify on the raw bytes and reject timestamps older than 5 minutes.
+- Your app should reply 2xx after saving the event. Retries: 10s, 30s, 2m, 10m, 30m, then hourly, plus up to 20% jitter. After `max_attempts` (default 12, a bit under 7 hours) the event is `dead`; replay with `POST /api/events/{id}/replay`.
+- Delivery is at least once and may be out of order. Statuses: pending, delivering, retrying, delivered, dead.
+- Admin: `RELAY_ADMIN_TOKEN` as Bearer (API) or Basic password (dashboard at `/`). `GET /api/events?status=&source=`, `GET /api/events/{id}`, `GET /api/stats`. Metrics at `/metrics`, health at `/healthz`.
+- Storage: SQLite by default (`RELAY_SQLITE`), Postgres with `DATABASE_URL`; several replicas share work via `FOR UPDATE SKIP LOCKED`. Tracing with `OTEL_EXPORTER_OTLP_ENDPOINT`.
+
+## Docs
+
+- [README](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/README.md): overview and quick start
+- [Getting started](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/docs/getting-started.md): run it locally with test events in ten minutes
+- [Integration guide](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/docs/integration.md): provider setup and verifying deliveries in Node, Python, PHP and Go
+- [How it works](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/docs/how-it-works.md): receiving, claiming, backoff, replay, storage
+- [Operations](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/docs/operations.md): Docker, Render, Kubernetes, alerts, tracing, security
+- [OpenAPI spec](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/openapi.yaml)
+
+## Optional
+
+- [Project page](https://jacksonkojoosei.com/projects/webhook-relay)
+- [Example receiver](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/examples/go-receiver/main.go) and [test event sender](https://github.com/Jacksonoseikojo1122/webhook-relay/blob/main/examples/send-test-event/main.go)
+- [Author](https://jacksonkojoosei.com): Jackson Kojo Osei, CTO, Accra, Ghana

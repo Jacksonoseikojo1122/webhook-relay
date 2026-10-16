@@ -1,0 +1,176 @@
+openapi: 3.1.0
+info:
+  title: Webhook Relay
+  version: 0.1.0
+  summary: Receive, verify, de-duplicate and retry webhooks from Paystack, Stripe, Flutterwave or any sender.
+  description: |
+    Providers post to `/in/{source}`. The relay checks the provider's signature, drops
+    duplicates, stores the event and replies 200 at once. A worker then delivers the
+    original body to your app, signed with `X-Relay-Signature`, retrying with backoff
+    until your app answers 2xx. Admin endpoints list, inspect and replay events.
+
+    Deliveries to your app (not part of this API, documented here for reference):
+    `POST <destination>` with the provider's original body and headers
+    `X-Relay-Event-Id`, `X-Relay-Attempt`, `X-Relay-Source`, `X-Relay-Provider`,
+    `X-Relay-Provider-Event-Id`, `X-Relay-Timestamp` and
+    `X-Relay-Signature: v1=<hex HMAC-SHA256 of "<timestamp>.<body>">` using the source's
+    `destination_secret`.
+  contact:
+    name: Jackson Kojo Osei
+    url: https://jacksonkojoosei.com/projects/webhook-relay
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:8080
+paths:
+  /in/{source}:
+    post:
+      summary: Receive a webhook from a provider
+      description: |
+        Signature rules by provider:
+        - paystack: `X-Paystack-Signature` = hex HMAC-SHA512(secret key, body)
+        - stripe: `Stripe-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, "t.body")>`, max 5 minutes old
+        - flutterwave: `verif-hash` equals the secret hash
+        - generic: optional `X-Signature: sha256=<hex HMAC-SHA256(secret, body)>`
+      parameters:
+        - name: source
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }
+          description: The source name from relay.json
+      requestBody:
+        required: true
+        content:
+          "*/*":
+            schema: { type: string, format: binary, maxLength: 1048576 }
+      responses:
+        "200":
+          description: Stored (`accepted`) or already stored (`duplicate`). Either way the provider can stop retrying.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [accepted, duplicate] }
+                  id: { type: string, example: rly_49889f4024852833f41d9eeb }
+        "401": { description: Signature missing or wrong, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "404": { description: Unknown source, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "413": { description: Body over 1 MB }
+        "503": { description: Could not store the event; the provider should retry }
+  /healthz:
+    get:
+      summary: Liveness and database check
+      responses:
+        "200": { description: OK }
+        "503": { description: Database unreachable }
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        "200":
+          description: Prometheus text format
+          content:
+            text/plain:
+              example: |
+                relay_webhooks_received_total{source="paystack-live"} 1042
+                relay_webhooks_duplicate_total{source="paystack-live"} 37
+                relay_signature_failures_total{source="paystack-live"} 0
+                relay_deliveries_total{result="delivered"} 1040
+                relay_events{status="dead"} 0
+  /api/events:
+    get:
+      summary: List recent events, newest first (max 100)
+      security: [{ bearer: [] }, { basic: [] }]
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/Status" } }
+        - { name: source, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events: { type: array, items: { $ref: "#/components/schemas/Event" } }
+        "401": { description: Admin token required }
+  /api/events/{id}:
+    get:
+      summary: One event with its payload and every delivery attempt
+      security: [{ bearer: [] }, { basic: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: Event
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event: { $ref: "#/components/schemas/Event" }
+                  body: { description: The payload, parsed as JSON when possible }
+                  attempts: { type: array, items: { $ref: "#/components/schemas/Attempt" } }
+        "404": { description: Not found }
+  /api/events/{id}/replay:
+    post:
+      summary: Deliver an event again with a fresh retry budget
+      security: [{ bearer: [] }, { basic: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: queued }
+                  id: { type: string }
+        "403": { description: Cross-site request refused (Basic auth from another origin) }
+        "404": { description: Not found }
+  /api/stats:
+    get:
+      summary: Count of stored events by status
+      security: [{ bearer: [] }, { basic: [] }]
+      responses:
+        "200":
+          description: Counts
+          content:
+            application/json:
+              example: { delivered: 1040, retrying: 2, dead: 0 }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, description: RELAY_ADMIN_TOKEN }
+    basic: { type: http, scheme: basic, description: Any username, RELAY_ADMIN_TOKEN as password (for browsers) }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    Status:
+      type: string
+      enum: [pending, delivering, retrying, delivered, dead]
+    Event:
+      type: object
+      properties:
+        id: { type: string }
+        source: { type: string }
+        provider: { type: string, enum: [paystack, stripe, flutterwave, generic] }
+        provider_event_id: { type: string, example: "charge.success:4815162" }
+        received_at: { type: string, format: date-time }
+        headers: { type: object, additionalProperties: { type: string } }
+        status: { $ref: "#/components/schemas/Status" }
+        attempts: { type: integer }
+        next_attempt_at: { type: string, format: date-time }
+        last_error: { type: string }
+        last_status_code: { type: integer }
+        delivered_at: { type: string, format: date-time }
+    Attempt:
+      type: object
+      properties:
+        n: { type: integer }
+        at: { type: string, format: date-time }
+        status_code: { type: integer }
+        error: { type: string }
+        duration_ms: { type: integer }

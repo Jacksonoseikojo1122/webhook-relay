@@ -1,0 +1,27 @@
+{
+  "max_attempts": 12,
+  "delivery_timeout": "15s",
+  "sources": [
+    {
+      "name": "paystack-live",
+      "provider": "paystack",
+      "secret": "$PAYSTACK_SECRET_KEY",
+      "destination": "https://your-app.example.com/webhooks/paystack",
+      "destination_secret": "$RELAY_TO_APP_SECRET"
+    },
+    {
+      "name": "stripe",
+      "provider": "stripe",
+      "secret": "$STRIPE_WEBHOOK_SECRET",
+      "destination": "https://your-app.example.com/webhooks/stripe",
+      "destination_secret": "$RELAY_TO_APP_SECRET"
+    },
+    {
+      "name": "flutterwave",
+      "provider": "flutterwave",
+      "secret": "$FLUTTERWAVE_SECRET_HASH",
+      "destination": "https://your-app.example.com/webhooks/flutterwave",
+      "destination_secret": "$RELAY_TO_APP_SECRET"
+    }
+  ]
+}

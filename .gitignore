@@ -1,0 +1,7 @@
+*.db
+*.db-shm
+*.db-wal
+relay.json
+/relay
+/relay.exe
+.env

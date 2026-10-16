@@ -1,0 +1,16 @@
+# One-click deploy on Render's free tier. Use a free Postgres (Render or Neon) for
+# DATABASE_URL: the free web service has no persistent disk, so SQLite would be
+# wiped on every restart.
+services:
+  - type: web
+    name: webhook-relay
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RELAY_ADMIN_TOKEN
+        generateValue: true
+      - key: RELAY_CONFIG
+        value: /etc/secrets/relay.json

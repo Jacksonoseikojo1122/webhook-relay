@@ -1,0 +1,37 @@
+{{template "head" "Events"}}
+<header>
+  <h1>Webhook Relay</h1>
+  <span class="muted">{{len .Sources}} source{{if ne (len .Sources) 1}}s{{end}} configured</span>
+</header>
+
+<div class="cards">
+  {{range .Statuses}}
+  <a class="card {{.}}" href="/?status={{.}}"><b>{{index $.Counts .}}</b><span>{{.}}</span></a>
+  {{end}}
+</div>
+
+<div class="filters">
+  <a class="chip {{if and (eq .Filter.Status "") (eq .Filter.Source "")}}on{{end}}" href="/">all</a>
+  {{range .Sources}}<a class="chip {{if eq $.Filter.Source .Name}}on{{end}}" href="/?source={{.Name}}">{{.Name}} · {{.Provider}}</a>{{end}}
+</div>
+
+{{if .Events}}
+<table>
+  <thead><tr><th>Received</th><th>Source</th><th class="hide-sm">Provider event</th><th>Status</th><th class="hide-sm">Tries</th><th>Last problem</th></tr></thead>
+  <tbody>
+  {{range .Events}}
+  <tr>
+    <td><a href="/events/{{.ID}}">{{ago .ReceivedAt}}</a></td>
+    <td>{{.Source}}</td>
+    <td class="hide-sm mono">{{.ProviderEventID}}</td>
+    <td><span class="pill {{.Pill}}">{{.Status}}</span>{{if eq .Pill "retrying"}}<div class="faint" style="font-size:12px">next {{ago .NextAttemptAt}}</div>{{end}}</td>
+    <td class="hide-sm">{{.Attempts}}</td>
+    <td class="err">{{.LastError}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No events yet. Point a provider at <span class="mono">/in/&lt;source&gt;</span> and they'll show up here.</p>
+{{end}}
+{{template "foot"}}
